@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ревизия</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{
+  --bg:#eef1ee; --surface:#ffffff; --ink:#15201c; --muted:#63706a; --line:#d6ddd8; --soft:#e5ebe7;
+  --accent:#1f5f58; --accent-ink:#ffffff; --accent-soft:#dcebe7;
+  --ok:#2e7a4b; --warn:#a86a12; --bad:#b3382c; --bad-soft:#f6e1de; --warn-soft:#f5ead6; --ok-soft:#dff0e5;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614; --surface:#18201d; --ink:#e7ece9; --muted:#95a39c; --line:#2b3632; --soft:#212b27;
+  --accent:#6fc2b3; --accent-ink:#0d1a17; --accent-soft:#1d302c;
+  --ok:#6cc58f; --warn:#e0a54a; --bad:#ef7d6f; --bad-soft:#3a2220; --warn-soft:#352a17; --ok-soft:#18301f;
+}}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#18201d; --ink:#e7ece9; --muted:#95a39c; --line:#2b3632; --soft:#212b27;
+  --accent:#6fc2b3; --accent-ink:#0d1a17; --accent-soft:#1d302c;
+  --ok:#6cc58f; --warn:#e0a54a; --bad:#ef7d6f; --bad-soft:#3a2220; --warn-soft:#352a17; --ok-soft:#18301f;
+}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Onest,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:0 96px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 0;border-bottom:1px solid var(--line)}
+.brandrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+.sub{font-size:12.5px;color:var(--muted)}
+.live{margin-left:auto;font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+.live[data-s="on"] i{background:var(--ok)}
+.live[data-s="saving"] i{background:var(--warn)}
+.meter{margin-top:10px;display:flex;align-items:center;gap:10px}
+.meter .track{flex:1;height:8px;border-radius:99px;background:var(--soft);overflow:hidden}
+.meter .fill{height:100%;background:var(--accent);width:0}
+.meter b{font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+nav.tabs{display:flex;gap:4px;margin-top:10px}
+nav.tabs button{flex:1;border:none;background:none;padding:10px 4px 11px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2.5px solid transparent;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs .badge{font-size:11px;background:var(--bad);color:#fff;border-radius:99px;padding:0 6px;margin-left:4px;font-variant-numeric:tabular-nums}
+section.pane{padding-top:16px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted);flex:1 1 160px}
+input.t,select.t{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:10px 11px;font-size:15px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:10px 14px;font-weight:600;cursor:pointer;font-size:14px}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.h{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.note{font-size:13px;color:var(--muted);margin:0}
+.scan{display:flex;gap:8px}
+.scan input{flex:1;min-width:0;font-family:var(--mono);font-size:18px;padding:14px 12px;border:2px solid var(--accent);border-radius:11px;background:var(--surface)}
+.big{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.flash{border-radius:10px;padding:10px 12px;font-size:14px}
+.flash.ok{background:var(--ok-soft);color:var(--ok)}
+.flash.bad{background:var(--bad-soft);color:var(--bad)}
+.flash.warn{background:var(--warn-soft);color:var(--warn)}
+.mono{font-family:var(--mono);font-size:13px}
+ul.l{list-style:none;margin:0;padding:0}
+ul.l li{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--soft)}
+ul.l li:last-child{border-bottom:none}
+.grow{flex:1;min-width:0}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.pill{font-size:11.5px;font-weight:600;border-radius:99px;padding:2px 8px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.mut{background:var(--soft);color:var(--muted)}
+.grp{display:grid;gap:10px}
+.g{display:grid;grid-template-columns:minmax(90px,130px) 1fr auto;gap:10px;align-items:center}
+.g .track{height:10px;border-radius:99px;background:var(--soft);overflow:hidden}
+.g .fill{height:100%;background:var(--accent)}
+.g.low .fill{background:var(--warn)}
+.g.zero .fill{background:var(--bad)}
+.g .lbl{font-weight:600;font-size:14px}
+.g .val{font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.g.low .lbl,.g.zero .lbl{color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi.bad .v{color:var(--bad)}
+.kpi.warn .v{color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font-size:13.5px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--soft);text-align:left;vertical-align:top}
+th{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+td.num,th.num{text-align:right}
+tr.found td{opacity:.45}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:none;background:var(--surface);padding:9px 8px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
+video{width:100%;border-radius:10px;background:#000;max-height:260px;object-fit:cover}
+.sizes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.stage{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
+.stage span{padding:4px 10px;border-radius:99px;background:var(--soft);color:var(--muted);font-weight:600}
+.stage span.on{background:var(--accent);color:var(--accent-ink)}
+.stage span.past{background:var(--accent-soft);color:var(--ink)}
+.plink{color:var(--accent);font-weight:600;text-decoration:none;border-bottom:1px solid currentColor;margin-left:4px}
+.thumb{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none;background:var(--soft)}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.meter .fill,.g .fill{transition:width .3s ease}}
+
+.thumb.nophoto{display:grid;place-items:center;font-size:11px;color:var(--accent);text-decoration:none;border:1px dashed var(--line)}
+.plink{color:var(--accent);font-weight:600}
+.hl{border:none;background:none;color:var(--accent);font-weight:600;padding:2px 0;cursor:pointer;font-size:12.5px}
+ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10px 12px;margin:2px 0 8px;border-bottom:none}
+.hrow{display:flex;gap:10px;align-items:baseline;font-size:13px;padding:4px 0;border-top:1px solid var(--line)}
+.hrow.other{opacity:.55}
+.hd{flex:none;width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.ht{flex:1;min-width:0}
+.hq{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+.hq.neg{color:var(--bad)}
+.hq.pos{color:var(--ok)}
+</style></head><body>
+<div class="wrap">
+  <header class="bar">
+    <div class="brandrow">
+      <h1 id="title">Ревизия</h1>
+      <span class="sub" id="modeLbl"></span>
+      <span class="live" id="live" data-s="off"><i></i><span>загрузка…</span></span>
+    </div>
+    <div class="meter"><div class="track"><div class="fill" id="topFill"></div></div><b id="topNum">…</b></div>
+    <div class="stage" id="stageBar" style="margin-top:10px"></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="scan" aria-selected="true">Счёт</button>
+      <button role="tab" data-tab="prog" aria-selected="false">Прогресс</button>
+      <button role="tab" data-tab="diff" aria-selected="false">Расхождения</button>
+      <button role="tab" data-tab="set" aria-selected="false">Старший</button>
+    </nav>
+  </header>
+
+  <div id="err" class="flash bad" style="margin-top:12px" hidden></div>
+
+  <section class="pane" id="p-scan">
+    <div style="display:grid;gap:8px">
+      <div class="row" id="nameRow" style="font-size:13px;color:var(--muted)"></div>
+      <div class="chips" id="zoneChips"></div>
+      <div class="row" id="addRow" hidden>
+        <input class="t" id="newZone" placeholder="Название зоны: стена справа, склад…" autocomplete="off" style="flex:1 1 200px">
+        <button class="btn pri" id="addZone" type="button">Добавить</button>
+      </div>
+      <p class="note" id="zoneNote"></p>
+    </div>
+
+    <div class="card" id="prepCard">
+      <p class="h">Фото зоны и ручной счёт</p>
+      <p class="note">Снимите зону, пересчитайте вещи руками и впишите число. Скан откроется, когда все зоны посчитаны и итог сошёлся с 1С.</p>
+      <div class="row" style="margin-top:10px">
+        <label class="f">Штук вручную<input class="t" id="handIn" type="number" inputmode="numeric" min="0" placeholder="например, 148"></label>
+        <label class="f">Фото зоны<input class="t" id="photoIn" type="file" accept="image/*" capture="environment"></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="btn pri" id="saveHand" type="button">Сохранить</button><span class="note" id="handNote"></span></div>
+      <img id="zonePhoto" alt="Фото зоны" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:10px" hidden>
+    </div>
+
+    <div class="card" id="scanCard">
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div><div class="sub" id="zoneTitle">Зона не выбрана</div><div class="big" id="zoneCount">0</div><div class="sub">скан / вручную</div></div>
+        <div class="row">
+          <button class="btn" id="camBtn" type="button">Камера</button>
+          <button class="btn" id="doneZone" type="button">Зона готова</button>
+        </div>
+      </div>
+      <video id="cam" playsinline muted hidden></video>
+      <form class="scan" id="scanForm" style="margin-top:12px" autocomplete="off">
+        <input id="scanIn" inputmode="text" placeholder="Сканируйте или введите артикул" aria-label="Штрихкод или артикул">
+        <button class="btn pri" type="submit">+1</button>
+      </form>
+      <div id="flash" style="margin-top:10px"></div>
+      <div id="pick"></div>
+    </div>
+
+    <div class="card">
+      <p class="h">Последние сканы в зоне</p>
+      <ul class="l" id="lastList"></ul>
+    </div>
+  </section>
+
+  <section class="pane" id="p-prog" hidden>
+    <div class="kpis" id="progKpi"></div>
+    <div class="card"><p class="h" id="grpTitle">Где не досчитали</p><div class="grp" id="grpList"></div>
+      <p class="note" style="margin-top:10px">Красным — ниже 90%. Обычно это пропущенная полка или стойка.</p></div>
+    <div class="card"><p class="h">Где больше всего не хватает</p><ul class="l" id="modelGap"></ul></div>
+    <div class="card"><p class="h">Зоны</p><ul class="l" id="zoneList"></ul></div>
+  </section>
+
+  <section class="pane" id="p-diff" hidden>
+    <div class="kpis" id="diffKpi"></div>
+    <div class="seg" id="diffSeg">
+      <button type="button" data-v="short" aria-pressed="true">Не хватает</button>
+      <button type="button" data-v="over" aria-pressed="false">Лишнее</button>
+      <button type="button" data-v="swap" aria-pressed="false">Пересорт</button>
+    </div>
+    <div class="card"><p class="note" id="diffHint"></p><ul class="l" id="diffList" style="margin-top:6px"></ul></div>
+  </section>
+
+  <section class="pane" id="p-set" hidden>
+    <div class="card">
+      <p class="h">Этап ревизии</p>
+      <p class="note" id="gateInfo"></p>
+      <div class="row" style="margin-top:10px"><button class="btn pri" id="openScan" type="button">Разрешить сканирование</button><button class="btn" id="backPrep" type="button">Вернуть к ручному счёту</button></div>
+      <p class="note" id="gateNote" style="margin-top:8px"></p>
+    </div>
+    <div class="card">
+      <p class="h">Итог</p>
+      <p class="note">Создаёт в таблице лист «Итог» — недостача, лишнее, суммы. Его проверяет бухгалтер и загружает в 1С.</p>
+      <div class="row" style="margin-top:10px"><button class="btn pri" id="exportBtn" type="button">Итог в таблицу</button><span class="note" id="exportNote"></span></div>
+    </div>
+    <div class="card">
+      <p class="h">Новая ревизия</p>
+      <p class="note">Зоны и сканы уходят в архивные листы. Выученные штрихкоды остаются.</p>
+      <div class="row" style="margin-top:10px"><button class="btn danger" id="resetBtn" type="button">Начать заново</button><span class="note" id="resetNote"></span></div>
+    </div>
+    <div class="card"><p class="h">Остатки</p><p class="note" id="stockInfo"></p></div>
+  </section>
+</div>
+
+<script>(function(){
+"use strict";
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function fmt(n){return Math.round(n).toLocaleString("ru-RU").replace(/,/g," ");}
+function norm(s){return String(s).toLowerCase().replace(/[\s\-_.]/g,"");}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
+
+var INIT="", S={}, arts={}, normIdx={}, barcodes={}, ST=null, me={name:"",senior:true};
+var myName=ls("rev-name")||"", myZone=ls("rev-zone")||"", tab="scan", diffView="short";
+var queue=[], sending=false, pendingCode=null, busy=false, HIST={}, histOpen="";
+
+/* ---------- server ---------- */
+var API="https://script.google.com/macros/s/AKfycbztA5E5Q5oyKXd9X0Eookuua2j6lqZUDEKQScWHeooXyNEKAPJbrOATnOolNJQ8xfKF/exec";
+function call(fn){
+  var args=Array.prototype.slice.call(arguments,1);
+  return fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args}),redirect:"follow"})
+    .then(function(r){ return r.json(); })
+    .then(function(o){ if(!o.ok) throw new Error(o.error||"Ошибка сервера"); return o.data; });
+}
+function showErr(e){ var el=$("err"); if(!e){el.hidden=true;return;} el.textContent=(e&&e.message)?e.message.replace(/^Exception:\s*/,""):String(e); el.hidden=false; }
+function setLive(s,t){var l=$("live"); l.dataset.s=s; l.lastChild.textContent=t;}
+function apply(state){ if(!state) return; ST=state; if(state.me) me=state.me; if(me.name&&!myName){myName=me.name;} render(); }
+
+/* ---------- data ---------- */
+function loadStock(d){
+  S={}; arts={}; normIdx={}; barcodes={};
+  d.rows.forEach(function(r){
+    var k=r[0]+"|"+r[1];
+    S[k]={art:r[0],size:r[1],bc:r[2],grp:r[3],brand:r[4],name:r[5],season:r[6]||"Без сезона",qty:r[7],cost:r[8],retail:r[9],photo:r[10],pack:/^01(pp|пакет)/i.test(r[0])};
+    (arts[r[0]]=arts[r[0]]||[]).push(k); normIdx[norm(r[0])]=r[0];
+    if(r[2]) barcodes[r[2]]=k;
+  });
+  for(var c in d.learned) barcodes[c]=d.learned[c];
+  if(d.me){ me=d.me; if(me.name) myName=me.name; }
+}
+function set(){ return ST?ST.set:{mode:"full",stage:"prep",tol:2,seasons:[],skipPack:true,shop:""}; }
+function inScope(k){var s=S[k],c=set(); if(!s) return false; if(c.skipPack&&s.pack) return false;
+  if(c.mode==="brand") return s.brand===c.brand; if(c.mode==="season") return c.seasons.indexOf(s.season)>=0; return true;}
+function groupOf(s){return set().mode==="brand"?(s.grp||"Прочее"):(s.grp&&set().mode!=="season"?s.grp:s.season);}
+function zonesView(){ // server zones + queued scans
+  var Z={}; if(!ST) return Z;
+  Object.keys(ST.zones).forEach(function(id){var z=ST.zones[id]; Z[id]={id:id,name:z.name,who:z.who,hand:z.hand,handBy:z.handBy,photo:z.photo,status:z.status,created:z.created,updated:z.updated,n:z.n,last:z.last.slice()};});
+  queue.forEach(function(q){var z=Z[q.zone]; if(z){z.n+=q.d; z.last.push([q.art+"|"+q.size,q.t,myName,q.d]);}});
+  return Z;
+}
+function counts(){ var c={}; if(ST) for(var k in ST.counts) c[k]=ST.counts[k]; queue.forEach(function(q){var k=q.art+"|"+q.size; c[k]=(c[k]||0)+q.d;}); return c; }
+function calc(){
+  var c=counts(), exp=0, got=0, by={}, rows=[], extra=[];
+  Object.keys(S).forEach(function(k){ if(!inScope(k)) return; var s=S[k], f=c[k]||0; exp+=s.qty; got+=f;
+    var g=groupOf(s), b=by[g]=by[g]||{e:0,f:0}; b.e+=s.qty; b.f+=f; if(f!==s.qty) rows.push({k:k,s:s,exp:s.qty,fact:f,d:f-s.qty}); });
+  Object.keys(c).forEach(function(k){ if(c[k]>0&&!inScope(k)) extra.push({k:k,s:S[k]||null,fact:c[k]}); });
+  var byArt={}; rows.forEach(function(r){(byArt[r.s.art]=byArt[r.s.art]||[]).push(r);});
+  var swaps=[]; Object.keys(byArt).forEach(function(a){var L=byArt[a],sh=L.filter(function(r){return r.d<0;}),ov=L.filter(function(r){return r.d>0;});
+    if(sh.length&&ov.length){L.forEach(function(r){r.swap=true;}); swaps.push({art:a,short:sh,over:ov});}});
+  return {c:c,exp:exp,got:got,by:by,rows:rows,extra:extra,swaps:swaps};
+}
+function handStat(){ var Z=zonesView(), ids=Object.keys(Z), sum=0, done=0; ids.forEach(function(id){var h=Z[id].hand; if(h!==null&&h!==""&&!isNaN(h)){sum+=Number(h);done++;}}); return {n:ids.length,done:done,sum:sum,all:ids.length>0&&done===ids.length}; }
+function gate(){ var hs=handStat(), exp=calc().exp, d=exp-hs.sum, p=exp?Math.abs(d)/exp*100:0; return {hs:hs,exp:exp,d:d,p:p,ok:hs.all&&p<=set().tol}; }
+function price(s){return s.cost>0?s.cost:s.retail;}
+function label(s){return s.name||s.art;}
+function sizeTxt(s){return s.size&&!/^(стандарт|nan|one|)$/i.test(s.size)?" · "+s.size:"";}
+function thumb(s){ if(s&&s.photo) return '<img class="thumb" src="'+esc(s.photo)+'" alt="" loading="lazy">';
+  return '<a class="thumb nophoto" href="https://avenue.tj/?s='+encodeURIComponent(s?s.art:"")+'&post_type=product" target="_blank" rel="noopener">фото</a>'; }
+
+/* ---------- render ---------- */
+function render(){
+  if(!ST) return;
+  var R=calc(), c=set(), prep=c.stage!=="scan", hs=handStat();
+  $("title").textContent="Ревизия "+(c.shop||"");
+  $("modeLbl").textContent=c.mode==="brand"?c.brand:c.mode==="season"?"сезоны: "+c.seasons.join(", "):"весь магазин";
+  var got=prep?hs.sum:R.got, pct=R.exp?Math.min(100,got/R.exp*100):0;
+  $("topFill").style.width=pct.toFixed(1)+"%";
+  $("topNum").textContent=(prep?"вручную ":"скан ")+fmt(got)+" из "+fmt(R.exp)+" · "+Math.round(pct)+"%";
+  $("stageBar").innerHTML='<span class="'+(prep?"on":"past")+'">1. Зоны и ручной счёт</span><span class="'+(prep?"":"on")+'">2. Сканирование</span><span>3. Поиск расхождений</span>';
+  $("prepCard").hidden=!prep; $("scanCard").hidden=prep;
+  if(tab==="scan") renderScan(); if(tab==="prog") renderProg(R); if(tab==="diff") renderDiff(R); if(tab==="set") renderSet(R);
+}
+function renderScan(){
+  var Z=zonesView(), ids=Object.keys(Z).sort(function(a,b){return Z[a].created-Z[b].created;});
+  if(myZone&&!Z[myZone]) myZone="";
+  $("zoneChips").innerHTML=ids.map(function(id){var z=Z[id]; return '<button class="chip" type="button" data-zone="'+esc(id)+'" aria-pressed="'+(id===myZone)+'">'+esc(z.name)+(z.status==="done"?" ✓":"")+'</button>';}).join("")+'<button class="chip" type="button" id="plusZone">+ зона</button>';
+  if(!(document.activeElement&&document.activeElement.id==="myName"))
+    $("nameRow").innerHTML=myName?'Считает: <b style="color:var(--ink)">'+esc(myName)+'</b>'+(me.name?'':' <button class="btn sm" type="button" id="chName" style="margin-left:6px">сменить</button>'):
+      '<input class="t" id="myName" placeholder="Ваше имя — один раз" autocomplete="off" style="flex:1 1 200px"><button class="btn sm pri" type="button" id="okName">OK</button>';
+  var z=Z[myZone], note=$("zoneNote");
+  if(!z){ note.textContent=ids.length?"Выберите свою зону.":"Добавьте первую зону: «+ зона»."; $("zoneTitle").textContent="Зона не выбрана"; $("zoneCount").textContent="0"; $("handNote").textContent="Сначала выберите зону."; $("zonePhoto").hidden=true; $("lastList").innerHTML='<li class="note">Пока пусто.</li>'; return; }
+  var mine=!z.who||z.who===myName, hasHand=z.hand!==null&&z.hand!==""&&!isNaN(z.hand);
+  note.innerHTML=mine?(z.status==="done"?"Зона закрыта. Новый скан снова откроет её.":""):'<span style="color:var(--bad)">Эту зону считает '+esc(z.who)+'.</span> <button class="btn sm" id="takeZone" type="button">забрать себе</button>';
+  if(document.activeElement!==$("handIn")) $("handIn").value=hasHand?z.hand:"";
+  if(!busy) $("handNote").innerHTML=hasHand?'Вручную: <b>'+fmt(z.hand)+'</b> · '+esc(z.handBy||""):"Ручного счёта ещё нет.";
+  var ph=$("zonePhoto"); if(z.photo){ if(ph.getAttribute("src")!==z.photo) ph.src=z.photo; ph.hidden=false; } else ph.hidden=true;
+  $("zoneTitle").textContent=z.name+(z.status==="done"?" — готова":"");
+  $("zoneCount").innerHTML=fmt(z.n)+(hasHand?' <span style="font-size:22px;color:var(--muted)">/ '+fmt(z.hand)+'</span>':"");
+  $("doneZone").textContent=z.status==="done"?"Открыть зону":"Зона готова";
+  var last=z.last.slice(-12).reverse();
+  $("lastList").innerHTML=last.length?last.map(function(e,i){var s=S[e[0]], t=new Date(e[1]);
+    return '<li>'+thumb(s)+'<div class="grow"><div>'+esc(s?label(s):e[0])+esc(s?sizeTxt(s):"")+(e[3]<0?' <span class="pill mut">отмена</span>':'')+'</div><div class="sub mono">'+esc(s?s.art:"")+' · '+t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+'</div></div>'+
+      (i===0&&mine&&e[3]>0&&set().stage==="scan"?'<button class="btn sm" data-undo="'+esc(e[0])+'" type="button">−1</button>':'')+'</li>';}).join(""):'<li class="note">Пока пусто.</li>';
+}
+function renderProg(R){
+  var Z=zonesView(), hs=handStat(), ids=Object.keys(Z).sort(function(a,b){return Z[a].created-Z[b].created;});
+  var doneZ=ids.filter(function(id){return Z[id].status==="done";}).length;
+  $("progKpi").innerHTML='<div class="kpi"><div class="k">По 1С</div><div class="v">'+fmt(R.exp)+'</div></div><div class="kpi"><div class="k">Вручную</div><div class="v">'+fmt(hs.sum)+'</div></div>'+
+    '<div class="kpi"><div class="k">Сканом</div><div class="v">'+fmt(R.got)+'</div></div><div class="kpi"><div class="k">Зоны готовы</div><div class="v">'+doneZ+' / '+ids.length+'</div></div>';
+  var order=Object.keys(R.by).sort(function(a,b){return R.by[b].e-R.by[a].e;});
+  $("grpList").innerHTML=order.map(function(g){var b=R.by[g], p=b.e?b.f/b.e*100:0;
+    return '<div class="g '+(p===0?"zero":p<90?"low":"")+'"><span class="lbl">'+esc(g)+'</span><div class="track"><div class="fill" style="width:'+Math.min(100,p).toFixed(1)+'%"></div></div><span class="val">'+fmt(b.f)+' из '+fmt(b.e)+'</span></div>';}).join("")||'<p class="note">Нет товара в ревизии.</p>';
+  var sh=R.rows.filter(function(r){return r.d<0;}).sort(function(a,b){return a.d-b.d;}).slice(0,12);
+  $("modelGap").innerHTML=sh.length?sh.map(function(r){return '<li>'+thumb(r.s)+'<div class="grow"><div>'+esc(label(r.s))+esc(sizeTxt(r.s))+'</div><div class="sub mono">'+esc(r.s.art)+'</div></div><span class="num"><b>−'+(-r.d)+'</b> из '+r.exp+'</span></li>';}).join(""):'<li class="note">Всё сходится.</li>';
+  $("zoneList").innerHTML=ids.length?ids.map(function(id){var z=Z[id], has=z.hand!==null&&z.hand!==""&&!isNaN(z.hand), pill;
+    if(!has) pill='<span class="pill mut">нет ручного</span>'; else if(set().stage!=="scan") pill='<span class="pill ok">вручную '+fmt(z.hand)+'</span>';
+    else if(z.n===Number(z.hand)) pill='<span class="pill ok">сошлось '+fmt(z.n)+'</span>'; else pill='<span class="pill '+(z.n<z.hand?"bad":"warn")+'">'+fmt(z.n)+' / '+fmt(z.hand)+'</span>';
+    return '<li>'+(z.photo?'<img class="thumb" src="'+esc(z.photo)+'" alt="">':'')+'<div class="grow"><b>'+esc(z.name)+'</b>'+(z.status==="done"?' <span class="pill ok">готова</span>':'')+'<div class="sub">'+esc(z.who||"никто")+'</div></div>'+pill+'</li>';}).join(""):'<li class="note">Зон пока нет.</li>';
+}
+function renderDiff(R){
+  var sh=R.rows.filter(function(r){return r.d<0;}), ov=R.rows.filter(function(r){return r.d>0;}), q=0,sum=0,retFlag=false,oq=0;
+  sh.forEach(function(r){q-=r.d; sum+=-r.d*price(r.s); if(!(r.s.cost>0)) retFlag=true;}); ov.forEach(function(r){oq+=r.d;}); R.extra.forEach(function(e){oq+=e.fact;});
+  $("diffKpi").innerHTML='<div class="kpi bad"><div class="k">Не хватает, шт.</div><div class="v">'+fmt(q)+'</div></div><div class="kpi bad"><div class="k">На сумму, сом</div><div class="v">'+fmt(sum)+(retFlag?"*":"")+'</div></div>'+
+    '<div class="kpi warn"><div class="k">Лишнее, шт.</div><div class="v">'+fmt(oq)+'</div></div><div class="kpi warn"><div class="k">Пересорт</div><div class="v">'+R.swaps.length+'</div></div>';
+  var canFind=set().stage==="scan"&&!!zonesView()[myZone];
+  if(diffView==="short"){
+    $("diffHint").innerHTML='Ищите по фото. Нашли — сканируйте или жмите «нашли».'+(retFlag?' * без себестоимости — по рознице.':'')+(canFind?'':' <b>Чтобы жать «нашли», выберите зону на «Счёте».</b>');
+    sh.sort(function(a,b){return (-b.d*price(b.s))-(-a.d*price(a.s));});
+    $("diffList").innerHTML=sh.length?sh.map(function(r){return '<li>'+thumb(r.s)+'<div class="grow"><div>'+esc(label(r.s))+esc(sizeTxt(r.s))+(r.swap?' <span class="pill warn">пересорт?</span>':'')+'</div><div class="sub mono">'+esc(r.s.art)+' · 1С '+r.exp+' · факт '+r.fact+'</div>'+histBtn(r.k)+'</div><span class="num"><b>−'+(-r.d)+'</b><div class="sub">'+fmt(-r.d*price(r.s))+'</div></span>'+
+      '<button class="btn sm" data-found="'+esc(r.k)+'" type="button"'+(canFind?"":" disabled")+'>нашли</button></li>'+(histOpen===r.k?histHtml(r.k):'');}).join(""):'<li class="note">Недостачи нет.</li>';
+  }else if(diffView==="over"){
+    $("diffHint").textContent='Лишнее — чаще всего двойной скан. Пересчитайте зону, где сканировали.';
+    var items=ov.map(function(r){return '<li>'+thumb(r.s)+'<div class="grow"><div>'+esc(label(r.s))+esc(sizeTxt(r.s))+'</div><div class="sub">'+zonesOf(r.k)+'</div>'+histBtn(r.k)+'</div><span class="num"><b>+'+r.d+'</b></span></li>'+(histOpen===r.k?histHtml(r.k):'');});
+    R.extra.forEach(function(e){items.push('<li>'+thumb(e.s)+'<div class="grow"><div>'+esc(e.s?label(e.s):e.k)+' <span class="pill mut">'+(e.s?"не в этой ревизии":"нет в 1С")+'</span></div><div class="sub">'+zonesOf(e.k)+'</div></div><span class="num"><b>+'+e.fact+'</b></span></li>');});
+    $("diffList").innerHTML=items.join("")||'<li class="note">Лишнего нет.</li>';
+  }else{
+    $("diffHint").textContent='Одного размера не хватает, другого лишнее. Скорее всего, пробили не тот размер — проверьте чеки.';
+    $("diffList").innerHTML=R.swaps.length?R.swaps.map(function(w){var s=w.short[0].s; return '<li>'+thumb(s)+'<div class="grow"><div>'+esc(label(s))+'</div><div class="sub">нет: '+w.short.map(function(r){return esc(r.s.size)+" −"+(-r.d);}).join(", ")+' · лишнее: '+w.over.map(function(r){return esc(r.s.size)+" +"+r.d;}).join(", ")+'</div></div></li>';}).join(""):'<li class="note">Пересорта не видно.</li>';
+  }
+}
+function fdate(t){ if(!t) return "—"; var d=new Date(t); return ("0"+d.getDate()).slice(-2)+"."+("0"+(d.getMonth()+1)).slice(-2)+"."+String(d.getFullYear()).slice(2); }
+function histBtn(k){ return '<button class="hl" type="button" data-hist="'+esc(k)+'">'+(histOpen===k?'скрыть историю':'история')+'</button>'; }
+function histHtml(k){
+  var p=k.split("|"), art=p[0], size=p[1], h=HIST[art], rev=zonesOf(k);
+  var head='<div class="sub" style="margin-bottom:6px">В этой ревизии: '+(rev||"ещё не сканировали")+'</div>';
+  if(!h) return '<li class="hist">'+head+'<div class="note">Загружаю историю…</div></li>';
+  if(h.error) return '<li class="hist">'+head+'<div class="note">'+esc(h.error)+'</div></li>';
+  if(h.empty||!h.rows.length) return '<li class="hist">'+head+'<div class="note">Движений по этому артикулу нет. История берётся из листа «История» — туда нужна выгрузка движений из 1С.</div></li>';
+  return '<li class="hist">'+head+h.rows.map(function(r){ var same=!size||!r[2]||r[2]===size;
+    return '<div class="hrow'+(same?'':' other')+'"><span class="hd">'+fdate(r[0])+'</span><span class="ht">'+esc(r[1])+(r[2]&&!/^(стандарт|nan)$/i.test(r[2])?' · <b>'+esc(r[2])+'</b>':'')+'<span class="sub"> '+esc([r[4],r[5]].filter(String).join(" → "))+(r[6]?' · '+esc(r[6]):'')+(r[7]?' · '+esc(r[7]):'')+'</span></span><span class="hq '+(r[3]<0?'neg':'pos')+'">'+(r[3]>0?'+':'')+r[3]+'</span></div>'; }).join("")+'</li>';
+}
+function openHist(k){
+  if(histOpen===k){ histOpen=""; render(); return; }
+  histOpen=k; var art=k.split("|")[0]; render();
+  if(!HIST[art]) call("getHistory",INIT,art).then(function(h){ HIST[art]=h; render(); }).catch(function(e){ HIST[art]={error:(e&&e.message)||"Не загрузилось"}; render(); });
+}
+function zonesOf(k){ if(!ST||!ST.where||!ST.where[k]) return ""; var w=ST.where[k]; return Object.keys(w).filter(function(id){return w[id]>0&&ST.zones[id];}).map(function(id){return esc(ST.zones[id].name)+": "+w[id];}).join(" · "); }
+function renderSet(R){
+  var G=gate(), hs=G.hs, c=set();
+  var why=!hs.n?'Зон пока нет.':!hs.all?'Ручной счёт есть у '+hs.done+' из '+hs.n+' зон. Скан откроется, когда посчитаны все.':
+    G.p>c.tol?'<b style="color:var(--bad)">Вручную '+fmt(hs.sum)+', по 1С '+fmt(G.exp)+': '+(G.d>0?'не хватает ':'лишних ')+fmt(Math.abs(G.d))+' шт. ('+G.p.toFixed(1)+'%). Допуск '+c.tol+'% — скан закрыт.</b> Найдите пропущенную зону и пересчитайте.':
+    'Вручную '+fmt(hs.sum)+', по 1С '+fmt(G.exp)+', разница '+G.p.toFixed(1)+'%. Можно открывать скан.';
+  $("gateInfo").innerHTML=c.stage==="scan"?'Сканирование открыто. Вручную '+fmt(hs.sum)+' по '+hs.n+' зонам, по 1С '+fmt(G.exp)+'.':why;
+  $("openScan").hidden=c.stage==="scan"; $("backPrep").hidden=c.stage!=="scan"; $("openScan").disabled=!G.ok||!me.senior;
+  if(!me.senior) $("gateNote").textContent="Открывать скан и начинать заново может только старший.";
+  var tq=0,ph=0,bc=0; Object.keys(S).forEach(function(k){ if(!inScope(k)) return; tq+=S[k].qty; if(S[k].photo) ph++; if(S[k].bc) bc++; });
+  $("stockInfo").textContent='В ревизии '+fmt(tq)+' шт. Со штрихкодом: '+bc+' строк, с фото: '+ph+'. Режим и допуск меняются в таблице, лист «Настройки».';
+}
+
+/* ---------- scanning ---------- */
+function flash(kind,html){$("flash").innerHTML='<div class="flash '+kind+'">'+html+'</div>';}
+function myZoneOk(){
+  if(!myName){ flash("bad","Сначала впишите имя сверху."); return null; }
+  var z=zonesView()[myZone]; if(!z){ flash("bad","Выберите зону."); return null; }
+  if(z.who&&z.who!==myName){ flash("bad","Эту зону считает "+esc(z.who)+"."); return null; }
+  if(set().stage!=="scan"){ flash("bad","Скан ещё закрыт: сначала ручной счёт по всем зонам."); return null; }
+  return z;
+}
+function add(k,d){
+  var z=myZoneOk(); if(!z) return false; var s=S[k], p=k.split("|");
+  queue.push({t:Date.now(),zone:myZone,art:s?s.art:p[0],size:s?s.size:p[1],d:d});
+  render(); flushSoon(); return true;
+}
+function resolve(code){
+  var c=String(code).trim(); if(!c) return; $("pick").innerHTML="";
+  if(barcodes[c]) return hit(barcodes[c]);
+  var a=normIdx[norm(c)];
+  if(!a){ var parts=c.split(/\s+/); if(parts.length>1){ var sz=parts.pop(), aa=normIdx[norm(parts.join(" "))]; if(aa&&S[aa+"|"+sz]) return hit(aa+"|"+sz); } }
+  if(a){ var ks=arts[a]; if(ks.length===1) return hit(ks[0]); return askSize(a,null); }
+  pendingCode=c;
+  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Незнакомый штрихкод <span class="mono">'+esc(c)+'</span>. Найдите товар один раз — дальше его узнают все.<input class="t" id="findArt" placeholder="Начните вводить артикул" autocomplete="off" style="margin-top:8px"><div id="findRes" class="sizes"></div></div>';
+  $("findArt").focus();
+}
+function hit(k){
+  if(!add(k,1)) return;
+  var s=S[k], cq=calc().c[k]||0, exp=s?s.qty:0;
+  var msg='<b>'+esc(s?label(s):k)+esc(s?sizeTxt(s):"")+'</b> — '+cq+' из '+exp;
+  if(!s) flash("warn","Нет в остатках 1С: "+esc(k)); else if(!inScope(k)) flash("warn",msg+". Не из этой ревизии."); else if(cq>exp) flash("warn",msg+". Больше, чем по 1С — не пикнули дважды?"); else flash("ok",msg);
+  if(navigator.vibrate) navigator.vibrate(40);
+}
+function askSize(a,code){
+  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Какой размер? <span class="mono">'+esc(a)+'</span><div class="sizes">'+arts[a].map(function(k){return '<button class="chip" type="button" data-pick="'+esc(k)+'" data-code="'+esc(code||"")+'">'+esc(S[k].size)+' <span class="sub">('+S[k].qty+')</span></button>';}).join("")+'</div></div>';
+}
+function learn(code,k){ barcodes[code]=k; var s=S[k]; call("learnBarcode",INIT,myName,code,s.art,s.size).catch(function(){}); }
+
+var flushT=null;
+function flushSoon(){ clearTimeout(flushT); flushT=setTimeout(flush,1200); }
+function flush(){
+  if(sending||!queue.length) return;
+  sending=true; var batch=queue.slice(); setLive("saving","сохраняю…");
+  call("pushScans",INIT,myName,batch).then(function(st){ queue=queue.slice(batch.length); sending=false; setLive("on","в сети"); showErr(null); apply(st); if(queue.length) flushSoon(); })
+    .catch(function(e){ sending=false; setLive("off","не сохранилось — повторю"); showErr(e); setTimeout(flush,4000); });
+}
+function poll(){
+  if(document.hidden||sending) return;
+  call("getState",INIT).then(function(st){ setLive(queue.length?"saving":"on",queue.length?"сохраняю…":"в сети"); apply(st); }).catch(function(e){ setLive("off","нет связи"); });
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",function(e){
+  var t=e.target.closest("[data-tab]");
+  if(t){ tab=t.dataset.tab; Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){b.setAttribute("aria-selected",String(b===t));}); ["scan","prog","diff","set"].forEach(function(p){$("p-"+p).hidden=p!==tab;}); render(); return; }
+  var zc=e.target.closest("[data-zone]"); if(zc){ myZone=zc.dataset.zone; ls("rev-zone",myZone); $("flash").innerHTML=""; $("photoIn").value=""; render(); return; }
+  if(e.target.id==="plusZone"){ $("addRow").hidden=!$("addRow").hidden; if(!$("addRow").hidden) $("newZone").focus(); return; }
+  if(e.target.id==="okName"){ setName($("myName").value); return; }
+  if(e.target.id==="chName"){ myName=""; ls("rev-name",""); $("nameRow").innerHTML=""; render(); return; }
+  if(e.target.id==="takeZone"){ call("takeZone",INIT,myName,myZone).then(apply).catch(showErr); return; }
+  var p=e.target.closest("[data-pick]"); if(p){ if(p.dataset.code) learn(p.dataset.code,p.dataset.pick); $("pick").innerHTML=""; hit(p.dataset.pick); $("scanIn").focus(); return; }
+  var fa=e.target.closest("[data-fart]"); if(fa){ var a=fa.dataset.fart; if(arts[a].length===1){ learn(pendingCode,arts[a][0]); $("pick").innerHTML=""; hit(arts[a][0]); $("scanIn").focus(); } else askSize(a,pendingCode); return; }
+  var u=e.target.closest("[data-undo]"); if(u){ if(add(u.dataset.undo,-1)) flash("warn","Отменила последний скан."); return; }
+  var hb=e.target.closest("[data-hist]"); if(hb){ openHist(hb.dataset.hist); return; }
+  var fd=e.target.closest("[data-found]"); if(fd){ add(fd.dataset.found,1); return; }
+  var ds=e.target.closest("#diffSeg [data-v]"); if(ds){ diffView=ds.dataset.v; Array.prototype.forEach.call(ds.parentNode.children,function(b){b.setAttribute("aria-pressed",String(b===ds));}); render(); return; }
+});
+function setName(v){ myName=String(v||"").trim(); ls("rev-name",myName); $("nameRow").innerHTML=""; render(); }
+document.addEventListener("keydown",function(e){
+  if(e.key!=="Enter") return;
+  if(e.target.id==="myName"){ e.preventDefault(); setName(e.target.value); }
+  if(e.target.id==="newZone"){ e.preventDefault(); $("addZone").click(); }
+});
+document.addEventListener("input",function(e){
+  if(e.target.id!=="findArt") return; var n=norm(e.target.value);
+  var r=n.length<2?[]:Object.keys(arts).filter(function(a){return norm(a).indexOf(n)>=0||norm(S[arts[a][0]].name||"").indexOf(n)>=0;}).slice(0,8);
+  $("findRes").innerHTML=r.map(function(a){return '<button class="chip" type="button" data-fart="'+esc(a)+'">'+esc(S[arts[a][0]].name||a)+' <span class="sub mono">'+esc(a)+'</span></button>';}).join("")||(n.length>1?'<span class="sub">Не нашла в остатках.</span>':'');
+});
+$("addZone").addEventListener("click",function(){
+  var n=$("newZone").value.trim(); if(!n) return; if(!myName){ showErr({message:"Сначала впишите имя."}); return; }
+  this.disabled=true; var btn=this;
+  call("addZone",INIT,myName,n).then(function(st){ btn.disabled=false; $("newZone").value=""; $("addRow").hidden=true; if(st.created){ myZone=st.created; ls("rev-zone",myZone);} apply(st); })
+    .catch(function(e){ btn.disabled=false; showErr(e); });
+});
+$("saveHand").addEventListener("click",function(){
+  if(!myName){ $("handNote").textContent="Сначала впишите имя."; return; }
+  var z=zonesView()[myZone]; if(!z){ $("handNote").textContent="Выберите зону."; return; }
+  var v=$("handIn").value.trim(); if(v===""||isNaN(+v)||+v<0){ $("handNote").textContent="Впишите число штук."; return; }
+  var f=$("photoIn").files&&$("photoIn").files[0]; busy=true; $("handNote").textContent=f?"Загружаю фото…":"Сохраняю…";
+  (f?shrink(f):Promise.resolve(null)).then(function(ph){ return call("setHand",INIT,myName,myZone,+v,ph); })
+    .then(function(st){ busy=false; $("photoIn").value=""; showErr(null); apply(st); }).catch(function(e){ busy=false; showErr(e); render(); });
+});
+function shrink(file){ return new Promise(function(res){ var img=new Image(), url=URL.createObjectURL(file);
+  img.onload=function(){ var k=Math.min(1,1280/Math.max(img.width,img.height)), c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); res({b64:c.toDataURL("image/jpeg",0.8).split(",")[1],mime:"image/jpeg"}); };
+  img.onerror=function(){ res(null); }; img.src=url; }); }
+var doneArm=0;
+$("doneZone").addEventListener("click",function(){
+  var z=zonesView()[myZone]; if(!z) return;
+  var has=z.hand!==null&&z.hand!==""&&!isNaN(z.hand);
+  if(z.status!=="done"&&has&&z.n!==Number(z.hand)&&Date.now()-doneArm>5000){ doneArm=Date.now(); var d=z.n-z.hand;
+    flash(d<0?"bad":"warn","Скан "+fmt(z.n)+", вручную "+fmt(z.hand)+": "+(d<0?"не досканировали "+fmt(-d):"лишних "+fmt(d))+" шт. Досканируйте или пересчитайте. Закрыть всё равно — нажмите ещё раз."); return; }
+  doneArm=0; flush(); call("setZoneStatus",INIT,myName,myZone,z.status==="done"?"open":"done").then(apply).catch(showErr);
+});
+$("scanForm").addEventListener("submit",function(e){ e.preventDefault(); var v=$("scanIn").value; $("scanIn").value=""; resolve(v); $("scanIn").focus(); });
+$("openScan").addEventListener("click",function(){ $("gateNote").textContent="Открываю…"; call("setStage",INIT,"scan").then(function(st){ $("gateNote").textContent="Скан открыт для всех."; apply(st); }).catch(function(e){ $("gateNote").textContent=""; showErr(e); }); });
+$("backPrep").addEventListener("click",function(){ call("setStage",INIT,"prep").then(apply).catch(showErr); });
+$("exportBtn").addEventListener("click",function(){ $("exportNote").textContent="Считаю…"; flush();
+  call("exportResult",INIT).then(function(r){ $("exportNote").innerHTML='Готово: лист «'+esc(r.name)+'», строк '+r.rows+'. <a class="plink" href="'+esc(r.url)+'" target="_blank" rel="noopener">открыть</a>'; }).catch(function(e){ $("exportNote").textContent=""; showErr(e); }); });
+var resetArm=0;
+$("resetBtn").addEventListener("click",function(){
+  if(Date.now()-resetArm>4000){ resetArm=Date.now(); this.textContent="Точно? Нажмите ещё раз"; return; }
+  resetArm=0; this.textContent="Начать заново"; $("resetNote").textContent="Архивирую…";
+  call("resetRevision",INIT).then(function(st){ myZone=""; ls("rev-zone",""); queue=[]; $("resetNote").textContent="Готово. Можно начинать."; apply(st); }).catch(function(e){ $("resetNote").textContent=""; showErr(e); });
+});
+
+/* ---------- camera ---------- */
+var camOn=false, stream=null, reader=null;
+$("camBtn").addEventListener("click",function(){
+  if(camOn){ stopCam(); return; }
+  var v=$("cam");
+  function onCode(code){ var now=Date.now(); if(onCode.last===code&&now-onCode.t<1500) return; onCode.last=code; onCode.t=now; resolve(code); }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ flash("bad","Камера здесь недоступна. Используйте Bluetooth-сканер или ввод."); return; }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
+    stream=s; v.srcObject=s; v.hidden=false; v.play(); camOn=true; $("camBtn").textContent="Выключить";
+    if("BarcodeDetector" in window){ var det=new window.BarcodeDetector(); (function loop(){ if(!camOn) return; det.detect(v).then(function(r){ if(r&&r[0]) onCode(r[0].rawValue); }).catch(function(){}).then(function(){ setTimeout(loop,250); }); })(); }
+    else { var sc=document.createElement("script"); sc.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+      sc.onload=function(){ try{ reader=new window.ZXing.BrowserMultiFormatReader(); reader.decodeFromStream(s,v,function(res){ if(res) onCode(res.getText()); }); }catch(err){ flash("bad","Распознавание не включилось. Используйте сканер."); } };
+      document.head.appendChild(sc); }
+  }).catch(function(){ flash("bad","Камера не разрешена. Используйте Bluetooth-сканер или ввод."); });
+});
+function stopCam(){ camOn=false; if(reader){try{reader.reset();}catch(e){}} if(stream) stream.getTracks().forEach(function(t){t.stop();}); $("cam").hidden=true; $("camBtn").textContent="Камера"; }
+
+/* ---------- boot ---------- */
+function start(){
+  call("getStock",INIT).then(function(d){ loadStock(d); return call("getState",INIT); })
+    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,4000); setTimeout(function(){$("scanIn").focus();},100); })
+    .catch(function(e){ setLive("off","нет доступа"); showErr(e); });
+}
+var TG=window.Telegram&&window.Telegram.WebApp;
+if(TG){ try{ TG.ready(); TG.expand(); }catch(e){} INIT=TG.initData||""; }
+start();
+})();
+</script>
+</body></html>
