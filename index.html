@@ -170,10 +170,12 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
         <div><div class="sub" id="zoneTitle">Зона не выбрана</div><div class="big" id="zoneCount">0</div><div class="sub">скан / вручную</div></div>
         <div class="row">
           <button class="btn" id="camBtn" type="button">Камера</button>
+          <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
+          <input id="codePhoto" type="file" accept="image/*" capture="environment" hidden>
           <button class="btn" id="doneZone" type="button">Зона готова</button>
         </div>
       </div>
-      <video id="cam" playsinline muted hidden></video>
+      <div id="camBox" hidden style="position:relative;margin-top:10px"><video id="cam" playsinline muted autoplay></video><div style="position:absolute;left:8%;right:8%;top:130px;height:2px;background:#e5484d;opacity:.85;pointer-events:none"></div><div class="sub" style="margin-top:6px">Наведите красную линию на штрихкод. Держите 10–20 см.</div></div>
       <form class="scan" id="scanForm" style="margin-top:12px" autocomplete="off">
         <input id="scanIn" inputmode="text" placeholder="Сканируйте или введите артикул" aria-label="Штрихкод или артикул">
         <button class="btn pri" type="submit">+1</button>
@@ -507,21 +509,83 @@ $("resetBtn").addEventListener("click",function(){
 });
 
 /* ---------- camera ---------- */
-var camOn=false, stream=null, reader=null;
+var camOn=false, stream=null, zxLoad=null, camBusy=false;
+var ZX_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+var NFMT=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","qr_code"];
+function loadZX(){ if(window.ZXing) return Promise.resolve(window.ZXing); if(zxLoad) return zxLoad;
+  zxLoad=new Promise(function(ok,no){ var sc=document.createElement("script"); sc.src=ZX_URL; sc.onload=function(){ ok(window.ZXing); }; sc.onerror=function(){ zxLoad=null; no(new Error("zxing")); }; document.head.appendChild(sc); });
+  return zxLoad; }
+var zxR=null;
+function zxReader(Z){ if(zxR) return zxR; var h=new Map(), F=Z.BarcodeFormat;
+  h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39,F.ITF,F.QR_CODE]);
+  h.set(Z.DecodeHintType.TRY_HARDER,true); zxR=new Z.MultiFormatReader(); zxR.setHints(h); return zxR; }
+var natP=null;
+function nativeDet(){ if(natP) return natP;
+  natP=("BarcodeDetector" in window)? window.BarcodeDetector.getSupportedFormats().then(function(f){ var u=NFMT.filter(function(x){ return f.indexOf(x)>=0; }); return u.length? new window.BarcodeDetector({formats:u}) : null; }).catch(function(){ return null; }) : Promise.resolve(null);
+  return natP; }
+/* Ищет код на холсте: сначала встроенный распознаватель телефона, потом ZXing. */
+function decodeCanvas(cv){
+  return nativeDet().then(function(det){
+    if(!det) return null;
+    return det.detect(cv).then(function(r){ return r&&r[0]? r[0].rawValue : null; }).catch(function(){ return null; });
+  }).then(function(code){
+    if(code) return code;
+    return loadZX().then(function(Z){
+      try{ var bmp=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)));
+        var r=zxReader(Z).decode(bmp); return r? r.getText() : null; }
+      catch(e){ return null; } finally{ try{ zxR.reset(); }catch(e){} }
+    });
+  });
+}
+function gotCode(code){ var now=Date.now(); if(gotCode.last===code&&now-gotCode.t<2000) return; gotCode.last=code; gotCode.t=now;
+  try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){}
+  try{ TG&&TG.HapticFeedback&&TG.HapticFeedback.notificationOccurred("success"); }catch(e){}
+  resolve(code); }
+var frameCv=document.createElement("canvas");
+function scanLoop(){
+  if(!camOn) return;
+  var v=$("cam");
+  if(camBusy||!v.videoWidth){ setTimeout(scanLoop,150); return; }
+  camBusy=true;
+  var vw=v.videoWidth, vh=v.videoHeight, cw=Math.round(vw*0.9), ch=Math.round(vh*0.6), sc=Math.min(1,1280/cw);
+  frameCv.width=Math.round(cw*sc); frameCv.height=Math.round(ch*sc);
+  frameCv.getContext("2d",{willReadFrequently:true}).drawImage(v,(vw-cw)/2,(vh-ch)/2,cw,ch,0,0,frameCv.width,frameCv.height);
+  decodeCanvas(frameCv).then(function(code){ camBusy=false; if(code&&camOn) gotCode(code); setTimeout(scanLoop, code?900:120); })
+    .catch(function(){ camBusy=false; setTimeout(scanLoop,300); });
+}
 $("camBtn").addEventListener("click",function(){
   if(camOn){ stopCam(); return; }
   var v=$("cam");
-  function onCode(code){ var now=Date.now(); if(onCode.last===code&&now-onCode.t<1500) return; onCode.last=code; onCode.t=now; resolve(code); }
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ flash("bad","Камера здесь недоступна. Используйте Bluetooth-сканер или ввод."); return; }
-  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
-    stream=s; v.srcObject=s; v.hidden=false; v.play(); camOn=true; $("camBtn").textContent="Выключить";
-    if("BarcodeDetector" in window){ var det=new window.BarcodeDetector(); (function loop(){ if(!camOn) return; det.detect(v).then(function(r){ if(r&&r[0]) onCode(r[0].rawValue); }).catch(function(){}).then(function(){ setTimeout(loop,250); }); })(); }
-    else { var sc=document.createElement("script"); sc.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
-      sc.onload=function(){ try{ reader=new window.ZXing.BrowserMultiFormatReader(); reader.decodeFromStream(s,v,function(res){ if(res) onCode(res.getText()); }); }catch(err){ flash("bad","Распознавание не включилось. Используйте сканер."); } };
-      document.head.appendChild(sc); }
-  }).catch(function(){ flash("bad","Камера не разрешена. Используйте Bluetooth-сканер или ввод."); });
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ flash("bad","Живая камера здесь не работает. Нажмите «Фото кода»."); return; }
+  loadZX().catch(function(){});
+  navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}}).then(function(s){
+    stream=s; v.srcObject=s; v.setAttribute("playsinline",""); v.muted=true; $("camBox").hidden=false;
+    var p=v.play(); if(p&&p.catch) p.catch(function(){});
+    try{ var tr=s.getVideoTracks()[0], cap=tr.getCapabilities? tr.getCapabilities() : {};
+      if(cap.focusMode&&cap.focusMode.indexOf("continuous")>=0) tr.applyConstraints({advanced:[{focusMode:"continuous"}]}).catch(function(){}); }catch(e){}
+    camOn=true; $("camBtn").textContent="Выключить"; scanLoop();
+  }).catch(function(){ flash("bad","Камера не разрешена. Нажмите «Фото кода» — это работает всегда."); });
 });
-function stopCam(){ camOn=false; if(reader){try{reader.reset();}catch(e){}} if(stream) stream.getTracks().forEach(function(t){t.stop();}); $("cam").hidden=true; $("camBtn").textContent="Камера"; }
+function stopCam(){ camOn=false; if(stream) stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; $("cam").srcObject=null; $("camBox").hidden=true; $("camBtn").textContent="Камера"; }
+
+/* Фото кода: снимок с камеры телефона, код ищем на снимке. */
+$("codePhoto").addEventListener("change",function(){
+  var f=this.files&&this.files[0]; this.value=""; if(!f) return;
+  flash("ok","Ищу штрихкод на фото…");
+  var url=URL.createObjectURL(f), img=new Image();
+  img.onload=function(){
+    var sizes=[1600,1000,2400], i=0, cv=document.createElement("canvas");
+    (function next(){
+      if(i>=sizes.length){ URL.revokeObjectURL(url); flash("bad","Код на фото не найден. Снимите ближе, чтобы штрихкод был крупно и ровно."); return; }
+      var s=Math.min(1,sizes[i++]/Math.max(img.naturalWidth,img.naturalHeight));
+      cv.width=Math.round(img.naturalWidth*s); cv.height=Math.round(img.naturalHeight*s);
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+      decodeCanvas(cv).then(function(code){ if(code){ URL.revokeObjectURL(url); $("flash").innerHTML=""; gotCode.last=""; gotCode(code); } else next(); }).catch(next);
+    })();
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); flash("bad","Не получилось открыть фото."); };
+  img.src=url;
+});
 
 /* ---------- boot ---------- */
 function start(){
