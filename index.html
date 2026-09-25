@@ -2,7 +2,7 @@
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ревизия</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script async src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 *{box-sizing:border-box}
@@ -642,8 +642,25 @@ function start(){
     .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); setTimeout(function(){$("scanIn").focus();},100); if(queue.length) flushSoon(); })
     .catch(function(e){ setLive("off","нет доступа"); showErr(e); });
 }
+/* Данные Telegram берём из адреса — не ждём скрипт telegram.org. */
+function tgHashData(){
+  try{ var h=(location.hash||"").replace(/^#/,""), q={};
+    h.split("&").forEach(function(kv){ var i=kv.indexOf("="); if(i>0) q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1)); });
+    return q.tgWebAppData||"";
+  }catch(e){ return ""; }
+}
+/* Говорим Telegram, что экран готов — даже без их скрипта. */
+function tgSend(ev,data){
+  var msg=JSON.stringify({eventType:ev,eventData:data||{}});
+  try{ if(window.TelegramWebviewProxy&&window.TelegramWebviewProxy.postEvent) window.TelegramWebviewProxy.postEvent(ev,JSON.stringify(data||{})); }catch(e){}
+  try{ if(window.parent&&window.parent!==window) window.parent.postMessage(msg,"*"); }catch(e){}
+  try{ if(window.external&&window.external.notify) window.external.notify(msg); }catch(e){}
+}
 var TG=window.Telegram&&window.Telegram.WebApp;
 if(TG){ try{ TG.ready(); TG.expand(); }catch(e){} INIT=TG.initData||""; }
+if(!INIT) INIT=tgHashData();
+tgSend("web_app_ready"); tgSend("web_app_expand");
+setTimeout(function(){ var T2=window.Telegram&&window.Telegram.WebApp; if(T2){ try{ T2.ready(); T2.expand(); }catch(e){} if(!INIT&&T2.initData){ INIT=T2.initData; start(); } } },1500);
 nativeDet().then(function(d){ if(d) setScanState("ok"); else loadZX().catch(function(){}); });
 start();
 })();
