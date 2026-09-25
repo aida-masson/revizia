@@ -558,15 +558,29 @@ function gotCode(code){ var now=Date.now(); if(gotCode.last===code&&now-gotCode.
   try{ TG&&TG.HapticFeedback&&TG.HapticFeedback.notificationOccurred("success"); }catch(e){}
   resolve(code); }
 var frameCv=document.createElement("canvas");
+var camTries=0, camNote="";
+function camStat(extra){ var el=$("scanState"); if(!el) return;
+  el.textContent="Сканер готов. Кадр "+camNote+" · попыток "+camTries+(extra?" · "+extra:""); }
+/* Пробуем разные куски кадра: весь кадр, середина, крупная середина. */
+var CROPS=[[1,0.55],[0.7,0.4],[0.45,0.25]];
 function scanLoop(){
   if(!camOn) return;
   var v=$("cam");
   if(camBusy||!v.videoWidth){ setTimeout(scanLoop,150); return; }
   camBusy=true;
-  var vw=v.videoWidth, vh=v.videoHeight, cw=Math.round(vw*0.9), ch=Math.round(vh*0.6), sc=Math.min(1,1280/cw);
-  frameCv.width=Math.round(cw*sc); frameCv.height=Math.round(ch*sc);
-  frameCv.getContext("2d",{willReadFrequently:true}).drawImage(v,(vw-cw)/2,(vh-ch)/2,cw,ch,0,0,frameCv.width,frameCv.height);
-  decodeCanvas(frameCv).then(function(code){ camBusy=false; if(code&&camOn) gotCode(code); setTimeout(scanLoop, code?900:120); })
+  try{
+    var vw=v.videoWidth, vh=v.videoHeight, c=CROPS[camTries%CROPS.length];
+    var cw=Math.round(vw*c[0]), ch=Math.round(vh*c[1]);
+    var sc=Math.min(1,1600/cw);
+    frameCv.width=Math.round(cw*sc); frameCv.height=Math.round(ch*sc);
+    var ctx=frameCv.getContext("2d",{willReadFrequently:true});
+    ctx.drawImage(v,Math.round((vw-cw)/2),Math.round((vh-ch)/2),cw,ch,0,0,frameCv.width,frameCv.height);
+    camTries++; camNote=vw+"×"+vh;
+    var d=ctx.getImageData(0,0,Math.min(60,frameCv.width),Math.min(60,frameCv.height)).data, mn=255, mx=0;
+    for(var i=0;i<d.length;i+=40){ if(d[i]<mn) mn=d[i]; if(d[i]>mx) mx=d[i]; }
+    camStat(mx-mn<6?"пустой кадр":"");
+  }catch(err){ camBusy=false; var el=$("scanState"); if(el) el.textContent="Камера не отдаёт кадр: "+String(err&&err.message||err); setTimeout(scanLoop,1000); return; }
+  decodeCanvas(frameCv).then(function(code){ camBusy=false; if(code&&camOn) gotCode(code); setTimeout(scanLoop, code?900:80); })
     .catch(function(){ camBusy=false; setTimeout(scanLoop,300); });
 }
 $("camBtn").addEventListener("click",function(){
