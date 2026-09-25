@@ -171,7 +171,7 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
         <div class="row">
           <button class="btn" id="camBtn" type="button">Камера</button>
           <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
-          <input id="codePhoto" type="file" accept="image/*" capture="environment" hidden>
+          <input id="codePhoto" type="file" accept="image/*" hidden>
           <button class="btn" id="doneZone" type="button">Зона готова</button>
         </div>
       </div>
@@ -240,6 +240,7 @@ function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorag
 
 var INIT="", S={}, arts={}, normIdx={}, barcodes={}, ST=null, me={name:"",senior:true};
 var myName=ls("rev-name")||"", myZone=ls("rev-zone")||"", tab="scan", diffView="short";
+var surplus={};
 var queue=(function(){ try{ return JSON.parse(ls("rev-queue")||"[]")||[]; }catch(e){ return []; } })(), sending=false, pendingCode=null, busy=false, HIST={}, histOpen="";
 
 /* ---------- server ---------- */
@@ -431,11 +432,12 @@ function add(k,d){
 function resolve(code){
   var c=String(code).trim(); if(!c) return; $("pick").innerHTML="";
   if(barcodes[c]) return hit(barcodes[c]);
+  if(surplus[c]) return hit(surplus[c]);
   var a=normIdx[norm(c)];
   if(!a){ var parts=c.split(/\s+/); if(parts.length>1){ var sz=parts.pop(), aa=normIdx[norm(parts.join(" "))]; if(aa&&S[aa+"|"+sz]) return hit(aa+"|"+sz); } }
   if(a){ var ks=arts[a]; if(ks.length===1) return hit(ks[0]); return askSize(a,null); }
   pendingCode=c;
-  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Незнакомый штрихкод <span class="mono">'+esc(c)+'</span>. Найдите товар один раз — дальше его узнают все.<input class="t" id="findArt" placeholder="Начните вводить артикул" autocomplete="off" style="margin-top:8px"><div id="findRes" class="sizes"></div></div>';
+  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Незнакомый штрихкод <span class="mono">'+esc(c)+'</span>. Найдите товар один раз — дальше его узнают все.<input class="t" id="findArt" placeholder="Начните вводить артикул" autocomplete="off" style="margin-top:8px"><div id="findRes" class="sizes"></div><button class="btn" type="button" data-surplus="'+esc(c)+'" style="margin-top:8px">Это излишек — записать так</button></div>';
   $("findArt").focus();
 }
 function hit(k){
@@ -475,6 +477,7 @@ document.addEventListener("click",function(e){
   if(e.target.id==="takeZone"){ call("takeZone",INIT,myName,myZone).then(apply).catch(showErr); return; }
   var p=e.target.closest("[data-pick]"); if(p){ if(p.dataset.code) learn(p.dataset.code,p.dataset.pick); $("pick").innerHTML=""; hit(p.dataset.pick); $("scanIn").focus(); return; }
   var fa=e.target.closest("[data-fart]"); if(fa){ var a=fa.dataset.fart; if(arts[a].length===1){ learn(pendingCode,arts[a][0]); $("pick").innerHTML=""; hit(arts[a][0]); $("scanIn").focus(); } else askSize(a,pendingCode); return; }
+  var sp=e.target.closest("[data-surplus]"); if(sp){ var sc=sp.dataset.surplus, sk="Излишек "+sc+"|"; surplus[sc]=sk; $("pick").innerHTML=""; if(add(sk,1)) flash("warn","Записала как излишек: "+esc(sc)+". В 1С такого нет."); $("scanIn").focus(); return; }
   var u=e.target.closest("[data-undo]"); if(u){ if(add(u.dataset.undo,-1)) flash("warn","Отменила последний скан."); return; }
   var hb=e.target.closest("[data-hist]"); if(hb){ openHist(hb.dataset.hist); return; }
   var fd=e.target.closest("[data-found]"); if(fd){ add(fd.dataset.found,1); return; }
