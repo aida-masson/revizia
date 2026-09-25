@@ -244,11 +244,30 @@ var queue=(function(){ try{ return JSON.parse(ls("rev-queue")||"[]")||[]; }catch
 
 /* ---------- server ---------- */
 var API="https://script.google.com/macros/s/AKfycbztA5E5Q5oyKXd9X0Eookuua2j6lqZUDEKQScWHeooXyNEKAPJbrOATnOolNJQ8xfKF/exec";
+function once_(body,ms){
+  var ctl=window.AbortController? new AbortController() : null;
+  var t=setTimeout(function(){ if(ctl) ctl.abort(); }, ms||40000);
+  var opt={method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body,redirect:"follow"};
+  if(ctl) opt.signal=ctl.signal;
+  return fetch(API,opt).then(function(r){ return r.text().then(function(tx){ return {st:r.status,tx:tx}; }); })
+    .then(function(r){ clearTimeout(t);
+      var o=null; try{ o=JSON.parse(r.tx); }catch(e){}
+      if(!o) throw new Error(r.st===200?"Google ответил не тем":"Google не ответил ("+r.st+")");
+      return o; })
+    .catch(function(e){ clearTimeout(t); throw e; });
+}
+/* Google иногда теряет ответ. Пробуем ещё раз, потом ещё. */
 function call(fn){
-  var args=Array.prototype.slice.call(arguments,1);
-  return fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args}),redirect:"follow"})
-    .then(function(r){ return r.json(); })
-    .then(function(o){ if(!o.ok) throw new Error(o.error||"Ошибка сервера"); return o.data; });
+  var args=Array.prototype.slice.call(arguments,1), body=JSON.stringify({fn:fn,args:args});
+  function go(n){
+    return once_(body).then(function(o){ if(!o.ok) throw new Error(o.error||"Ошибка сервера"); return o.data; })
+      .catch(function(e){
+        var soft=/Google|Failed to fetch|NetworkError|aborted|abort/i.test(String(e&&e.message||e));
+        if(soft&&n<2) return new Promise(function(ok){ setTimeout(ok,1200*(n+1)); }).then(function(){ return go(n+1); });
+        throw e;
+      });
+  }
+  return go(0);
 }
 function showErr(e){ var el=$("err"); if(!e){el.hidden=true;return;} el.textContent=(e&&e.message)?e.message.replace(/^Exception:\s*/,""):String(e); el.hidden=false; }
 function setLive(s,t){var l=$("live"); l.dataset.s=s; l.lastChild.textContent=t;}
@@ -620,7 +639,7 @@ $("codePhoto").addEventListener("change",function(){
 /* ---------- boot ---------- */
 function start(){
   call("getStock",INIT).then(function(d){ loadStock(d); return call("getState",INIT); })
-    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,5000); setTimeout(function(){$("scanIn").focus();},100); if(queue.length) flushSoon(); })
+    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); setTimeout(function(){$("scanIn").focus();},100); if(queue.length) flushSoon(); })
     .catch(function(e){ setLive("off","нет доступа"); showErr(e); });
 }
 var TG=window.Telegram&&window.Telegram.WebApp;
