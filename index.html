@@ -102,6 +102,13 @@ tr.found td{opacity:.45}
 .seg button{flex:1;border:none;background:var(--surface);padding:9px 8px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
 video{width:100%;border-radius:10px;background:#000;height:46vh;max-height:420px;object-fit:cover}
+#tsdBar,#tsdFoot{display:none}
+body.tsd #camBox{position:fixed !important;inset:0 !important;z-index:50;margin:0 !important;background:#000;border-radius:0}
+body.tsd #camBox video{height:100% !important;width:100%;max-height:none !important;border-radius:0}
+body.tsd #camBox>div{top:50% !important}
+body.tsd #tsdBar{display:flex;position:fixed;left:0;right:0;top:0;z-index:51;gap:12px;align-items:center;padding:12px 14px;background:rgba(0,0,0,.55);color:#fff;font:700 30px/1 Onest,system-ui,sans-serif}
+body.tsd #tsdFoot{display:block;position:fixed;left:0;right:0;bottom:0;z-index:51;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,.65);color:#fff;font-size:17px}
+#tsdBar .btn{font-size:15px;font-weight:600;background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.45)}
 .sizes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .stage{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
 .stage span{padding:4px 10px;border-radius:99px;background:var(--soft);color:var(--muted);font-weight:600}
@@ -143,6 +150,9 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
 
   <div id="err" class="flash bad" style="margin-top:12px" hidden></div>
 
+  <div id="tsdBar"><span id="tsdCount">0</span><span id="tsdZone" style="font-size:15px;font-weight:400;opacity:.85"></span><button class="btn" id="tsdClose" type="button" style="margin-left:auto">Выйти</button></div>
+  <div id="tsdFoot"><div id="tsdMsg">Наведите красную линию на штрихкод</div></div>
+
   <section class="pane" id="p-scan">
     <div style="display:grid;gap:8px">
       <div class="row" id="nameRow" style="font-size:13px;color:var(--muted)"></div>
@@ -176,6 +186,7 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
       <div class="row" style="margin-top:10px">
         <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
         <input id="codePhoto" type="file" accept="image/*" hidden>
+        <button class="btn" id="fullBtn" type="button">Во весь экран</button>
         <button class="btn" id="manualBtn" type="button">Ввести вручную</button>
         <button class="btn" id="doneZone" type="button">Зона готова</button>
       </div>
@@ -343,7 +354,7 @@ function renderScan(){
   if(document.activeElement!==$("handIn")) $("handIn").value=hasHand?z.hand:"";
   if(!busy) $("handNote").innerHTML=hasHand?'Вручную: <b>'+fmt(z.hand)+'</b> · '+esc(z.handBy||""):"Ручного счёта ещё нет.";
   var ph=$("zonePhoto"); if(z.photo){ if(ph.getAttribute("src")!==z.photo) ph.src=z.photo; ph.hidden=false; } else ph.hidden=true;
-  $("zoneTitle").textContent=z.name+(z.status==="done"?" — готова":"");
+  $("zoneTitle").textContent=z.name+(z.status==="done"?" — готова":""); $("tsdZone").textContent=z.name; $("tsdCount").textContent=fmt(z.n);
   $("zoneCount").innerHTML=fmt(z.n)+(hasHand?' <span style="font-size:22px;color:var(--muted)">/ '+fmt(z.hand)+'</span>':"");
   $("doneZone").textContent=z.status==="done"?"Открыть зону":"Зона готова";
   var last=z.last.slice(-12).reverse();
@@ -417,7 +428,8 @@ function renderSet(R){
 }
 
 /* ---------- scanning ---------- */
-function flash(kind,html){$("flash").innerHTML='<div class="flash '+kind+'">'+html+'</div>';}
+function flash(kind,html){$("flash").innerHTML='<div class="flash '+kind+'">'+html+'</div>';
+  var m=$("tsdMsg"); if(m){ m.innerHTML=html; m.style.color=kind==="ok"?"#7ee2a8":(kind==="bad"?"#ff8a8a":"#ffd479"); }}
 function myZoneOk(){
   if(!myName){ flash("bad","Сначала впишите имя сверху."); return null; }
   var z=zonesView()[myZone]; if(!z){ flash("bad","Выберите зону."); return null; }
@@ -637,6 +649,10 @@ function startCam(){
   }).catch(function(){ flash("bad","Камера не разрешена. Нажмите «Фото кода» — это работает всегда."); });
 }
 $("camBtn").addEventListener("click",function(){ if(camOn) stopCam(); else startCam(); });
+function tsdOn(){ document.body.classList.add("tsd"); startCam(); render(); }
+function tsdOff(){ document.body.classList.remove("tsd"); }
+$("fullBtn").addEventListener("click",tsdOn);
+$("tsdClose").addEventListener("click",tsdOff);
 $("manualBtn").addEventListener("click",function(){ var f=$("scanForm"); f.hidden=!f.hidden; this.textContent=f.hidden?"Ввести вручную":"Скрыть поле"; if(!f.hidden) focusScan(); });
 function stopCam(){ camOn=false; if(stream) stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; $("cam").srcObject=null; $("camBox").hidden=true; $("camBtn").textContent="Камера"; }
 
@@ -661,10 +677,14 @@ $("codePhoto").addEventListener("change",function(){
 
 /* ---------- boot ---------- */
 function start(){
-  call("getStock",INIT).then(function(d){ loadStock(d); return call("getState",INIT); })
-    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); if(queue.length) flushSoon(); })
+  var cached=null; try{ cached=JSON.parse(ls("rev-stock")||"null"); }catch(e){}
+  if(cached&&cached.rows&&cached.rows.length){ loadStock(cached); setLive("saving","беру из памяти…"); }
+  var first=cached? call("getState",INIT) : call("getStock",INIT).then(function(d){ loadStock(d); saveStock(d); return call("getState",INIT); });
+  first.then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); if(queue.length) flushSoon();
+      if(cached) call("getStock",INIT).then(function(d){ loadStock(d); saveStock(d); render(); }).catch(function(){}); })
     .catch(function(e){ setLive("off","нет доступа"); showErr(e); });
 }
+function saveStock(d){ try{ ls("rev-stock",JSON.stringify({rows:d.rows,learned:d.learned})); }catch(e){} }
 /* Данные Telegram берём из адреса — не ждём скрипт telegram.org. */
 function tgHashData(){
   try{ var h=(location.hash||"").replace(/^#/,""), q={};
