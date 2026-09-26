@@ -187,6 +187,7 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
         <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
         <input id="codePhoto" type="file" accept="image/*" hidden>
         <button class="btn" id="fullBtn" type="button">Во весь экран</button>
+        <button class="btn" id="eyeBtn" type="button" hidden>Глазами продавца</button>
         <button class="btn" id="manualBtn" type="button">Ввести вручную</button>
         <button class="btn" id="doneZone" type="button">Зона готова</button>
       </div>
@@ -338,6 +339,7 @@ function render(){
   $("topNum").textContent=boss()?((prep?"вручную ":"скан ")+fmt(got)+" из "+fmt(R.exp)+" · "+Math.round(pct)+"%"):((prep?"вручную ":"скан ")+fmt(got));
   $("topFill").style.width=boss()?pct.toFixed(1)+"%":"0%";
   Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){ if(b.dataset.tab!=="scan") b.hidden=!boss(); });
+  $("eyeBtn").hidden=!me.senior; $("eyeBtn").textContent=asStaff?"Вернуть вид старшего":"Глазами продавца";
   if(!boss()&&tab!=="scan"){ tab="scan"; ["scan","prog","diff","set"].forEach(function(p){$("p-"+p).hidden=p!=="scan";}); }
   $("stageBar").innerHTML='<span class="'+(prep?"on":"past")+'">1. Зоны и ручной счёт</span><span class="'+(prep?"":"on")+'">2. Сканирование</span><span>3. Поиск расхождений</span>';
   $("prepCard").hidden=!prep; $("scanCard").hidden=prep;
@@ -470,7 +472,8 @@ function showFind(c){
   $("findArt").focus();
 }
 function focusScan(){ var f=$("scanForm"); if(f&&!f.hidden) $("scanIn").focus(); }
-function boss(){ return !!me.senior; }
+var asStaff=false;
+function boss(){ return !!me.senior && !asStaff; }
 function hit(k){
   if(!add(k,1)) return;
   var s=S[k], cq=calc().c[k]||0, exp=s?s.qty:0;
@@ -661,6 +664,7 @@ $("camBtn").addEventListener("click",function(){ if(camOn) stopCam(); else start
 function tsdOn(){ document.body.classList.add("tsd"); startCam(); render(); }
 function tsdOff(){ document.body.classList.remove("tsd"); }
 $("fullBtn").addEventListener("click",tsdOn);
+$("eyeBtn").addEventListener("click",function(){ asStaff=!asStaff; $("flash").innerHTML=""; $("pick").innerHTML=""; render(); });
 $("tsdClose").addEventListener("click",tsdOff);
 $("manualBtn").addEventListener("click",function(){ var f=$("scanForm"); f.hidden=!f.hidden; this.textContent=f.hidden?"Ввести вручную":"Скрыть поле"; if(!f.hidden) focusScan(); });
 function stopCam(){ camOn=false; if(stream) stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; $("cam").srcObject=null; $("camBox").hidden=true; $("camBtn").textContent="Камера"; }
