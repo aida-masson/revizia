@@ -261,10 +261,10 @@ function once_(body,ms){
 function call(fn){
   var args=Array.prototype.slice.call(arguments,1), body=JSON.stringify({fn:fn,args:args});
   function go(n){
-    return once_(body).then(function(o){ if(!o.ok) throw new Error(o.error||"Ошибка сервера"); return o.data; })
+    return once_(body).then(function(o){ if(!o.ok){ var er=new Error(o.error||"Ошибка сервера"); er.fromServer=true; throw er; } return o.data; })
       .catch(function(e){
-        var soft=/Google|Failed to fetch|NetworkError|aborted|abort/i.test(String(e&&e.message||e));
-        if(soft&&n<2) return new Promise(function(ok){ setTimeout(ok,1200*(n+1)); }).then(function(){ return go(n+1); });
+        if(!e||!e.fromServer){ if(n<3) return new Promise(function(ok){ setTimeout(ok,1000*(n+1)); }).then(function(){ return go(n+1); });
+          throw new Error("Google не ответил "+(n+1)+" раза подряд. Проверьте интернет и попробуйте ещё раз."); }
         throw e;
       });
   }
