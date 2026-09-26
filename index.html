@@ -442,7 +442,7 @@ function resolve(code){
 /* Незнакомый код записываем сразу как излишек. Привязать к товару можно потом. */
 function surplusHit(c){
   var sk=surplus[c]||("Излишек "+c+"|"); surplus[c]=sk;
-  if(add(sk,1)) flash("warn",'Излишек <span class="mono">'+esc(c)+'</span> — записала. <button class="btn sm" type="button" data-findcode="'+esc(c)+'">Это наш товар</button>');
+  if(add(sk,1)){ flash("warn",'Излишек <span class="mono">'+esc(c)+'</span> — записала. <button class="btn sm" type="button" data-findcode="'+esc(c)+'">Это наш товар</button>'); buzz("warn"); }
 }
 /* Панель поиска: привязать код к артикулу из 1С. */
 function showFind(c){
@@ -454,8 +454,10 @@ function hit(k){
   if(!add(k,1)) return;
   var s=S[k], cq=calc().c[k]||0, exp=s?s.qty:0;
   var msg='<b>'+esc(s?label(s):k)+esc(s?sizeTxt(s):"")+'</b> — '+cq+' из '+exp;
-  if(!s) flash("warn","Нет в остатках 1С: "+esc(k)); else if(!inScope(k)) flash("warn",msg+". Не из этой ревизии."); else if(cq>exp) flash("warn",msg+". Больше, чем по 1С — не пикнули дважды?"); else flash("ok",msg);
-  if(navigator.vibrate) navigator.vibrate(40);
+  if(!s){ flash("warn","Нет в остатках 1С: "+esc(k)); buzz("warn"); }
+  else if(!inScope(k)){ flash("warn",msg+". Не из этой ревизии."); buzz("warn"); }
+  else if(cq>exp){ flash("warn",msg+". Больше, чем по 1С — не пикнули дважды?"); buzz("warn"); }
+  else { flash("ok",msg); buzz("ok"); }
 }
 function askSize(a,code){
   $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Какой размер? <span class="mono">'+esc(a)+'</span><div class="sizes">'+arts[a].map(function(k){return '<button class="chip" type="button" data-pick="'+esc(k)+'" data-code="'+esc(code||"")+'">'+esc(S[k].size)+' <span class="sub">('+S[k].qty+')</span></button>';}).join("")+'</div></div>';
@@ -585,10 +587,14 @@ function decodeCanvas(cv){
     });
   });
 }
-function gotCode(code){ var now=Date.now(); if(gotCode.last===code&&now-gotCode.t<2000) return; gotCode.last=code; gotCode.t=now;
-  try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){}
-  try{ TG&&TG.HapticFeedback&&TG.HapticFeedback.notificationOccurred("success"); }catch(e){}
-  resolve(code); }
+function gotCode(code){ var now=Date.now(); if(gotCode.last===code&&now-gotCode.t<2000) return; gotCode.last=code; gotCode.t=now; resolve(code); }
+/* Вибрация: свой товар — короткая, спорное — двойная. */
+function buzz(kind){
+  try{ if(navigator.vibrate) navigator.vibrate(kind==="ok"?60:[40,70,40]); }catch(e){}
+  var T=window.Telegram&&window.Telegram.WebApp;
+  try{ if(T&&T.HapticFeedback){ if(kind==="ok") T.HapticFeedback.impactOccurred("medium"); else T.HapticFeedback.notificationOccurred("warning"); return; } }catch(e){}
+  tgSend("web_app_trigger_haptic_feedback", kind==="ok"?{type:"impact",impact_style:"medium"}:{type:"notification",notification_type:"warning"});
+}
 var frameCv=document.createElement("canvas");
 var camTries=0, camNote="";
 function camStat(extra){ var el=$("scanState"); if(!el) return;
