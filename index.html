@@ -335,7 +335,10 @@ function render(){
   $("modeLbl").textContent=c.mode==="brand"?c.brand:c.mode==="season"?"сезоны: "+c.seasons.join(", "):"весь магазин";
   var got=prep?hs.sum:R.got, pct=R.exp?Math.min(100,got/R.exp*100):0;
   $("topFill").style.width=pct.toFixed(1)+"%";
-  $("topNum").textContent=(prep?"вручную ":"скан ")+fmt(got)+" из "+fmt(R.exp)+" · "+Math.round(pct)+"%";
+  $("topNum").textContent=boss()?((prep?"вручную ":"скан ")+fmt(got)+" из "+fmt(R.exp)+" · "+Math.round(pct)+"%"):((prep?"вручную ":"скан ")+fmt(got));
+  $("topFill").style.width=boss()?pct.toFixed(1)+"%":"0%";
+  Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){ if(b.dataset.tab!=="scan") b.hidden=!boss(); });
+  if(!boss()&&tab!=="scan"){ tab="scan"; ["scan","prog","diff","set"].forEach(function(p){$("p-"+p).hidden=p!=="scan";}); }
   $("stageBar").innerHTML='<span class="'+(prep?"on":"past")+'">1. Зоны и ручной счёт</span><span class="'+(prep?"":"on")+'">2. Сканирование</span><span>3. Поиск расхождений</span>';
   $("prepCard").hidden=!prep; $("scanCard").hidden=prep;
   if(tab==="scan") renderScan(); if(tab==="prog") renderProg(R); if(tab==="diff") renderDiff(R); if(tab==="set") renderSet(R);
@@ -455,7 +458,10 @@ function resolve(code){
 /* Незнакомый код записываем сразу как излишек. Привязать к товару можно потом. */
 function surplusHit(c){
   var sk=surplus[c]||("Излишек "+c+"|"); surplus[c]=sk;
-  if(add(sk,1)){ flash("warn",'Излишек <span class="mono">'+esc(c)+'</span> — записала. <button class="btn sm" type="button" data-findcode="'+esc(c)+'">Это наш товар</button>'); buzz("warn"); }
+  if(!add(sk,1)) return;
+  if(boss()) flash("warn",'Излишек <span class="mono">'+esc(c)+'</span> — записала. <button class="btn sm" type="button" data-findcode="'+esc(c)+'">Это наш товар</button>');
+  else flash("ok",'Записала <span class="mono">'+esc(c)+'</span>');
+  buzz("ok");
 }
 /* Панель поиска: привязать код к артикулу из 1С. */
 function showFind(c){
@@ -464,17 +470,20 @@ function showFind(c){
   $("findArt").focus();
 }
 function focusScan(){ var f=$("scanForm"); if(f&&!f.hidden) $("scanIn").focus(); }
+function boss(){ return !!me.senior; }
 function hit(k){
   if(!add(k,1)) return;
   var s=S[k], cq=calc().c[k]||0, exp=s?s.qty:0;
-  var msg='<b>'+esc(s?label(s):k)+esc(s?sizeTxt(s):"")+'</b> — '+cq+' из '+exp;
+  var name='<b>'+esc(s?label(s):"Товар")+esc(s?sizeTxt(s):"")+'</b>';
+  if(!boss()){ flash("ok",name+" — записала"); buzz("ok"); return; }
+  var msg=name+' — '+cq+' из '+exp;
   if(!s){ flash("warn","Нет в остатках 1С: "+esc(k)); buzz("warn"); }
   else if(!inScope(k)){ flash("warn",msg+". Не из этой ревизии."); buzz("warn"); }
   else if(cq>exp){ flash("warn",msg+". Больше, чем по 1С — не пикнули дважды?"); buzz("warn"); }
   else { flash("ok",msg); buzz("ok"); }
 }
 function askSize(a,code){
-  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Какой размер? <span class="mono">'+esc(a)+'</span><div class="sizes">'+arts[a].map(function(k){return '<button class="chip" type="button" data-pick="'+esc(k)+'" data-code="'+esc(code||"")+'">'+esc(S[k].size)+' <span class="sub">('+S[k].qty+')</span></button>';}).join("")+'</div></div>';
+  $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Какой размер? <span class="mono">'+esc(a)+'</span><div class="sizes">'+arts[a].map(function(k){return '<button class="chip" type="button" data-pick="'+esc(k)+'" data-code="'+esc(code||"")+'">'+esc(S[k].size)+(boss()?' <span class="sub">('+S[k].qty+')</span>':"")+'</button>';}).join("")+'</div></div>';
 }
 function learn(code,k){ if(surplus[code]){ add(surplus[code],-1); delete surplus[code]; } barcodes[code]=k; var s=S[k]; call("learnBarcode",INIT,myName,code,s.art,s.size).catch(function(){}); }
 
