@@ -101,7 +101,7 @@ tr.found td{opacity:.45}
 .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{flex:1;border:none;background:var(--surface);padding:9px 8px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
-video{width:100%;border-radius:10px;background:#000;max-height:260px;object-fit:cover}
+video{width:100%;border-radius:10px;background:#000;height:46vh;max-height:420px;object-fit:cover}
 .sizes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .stage{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
 .stage span{padding:4px 10px;border-radius:99px;background:var(--soft);color:var(--muted);font-weight:600}
@@ -166,23 +166,24 @@ ul.l li.hist{display:block;background:var(--soft);border-radius:10px;padding:10p
     </div>
 
     <div class="card" id="scanCard">
-      <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div id="camBox" hidden style="position:relative"><video id="cam" playsinline muted autoplay></video><div style="position:absolute;left:8%;right:8%;top:50%;height:2px;background:#e5484d;opacity:.85;pointer-events:none"></div></div>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px">
         <div><div class="sub" id="zoneTitle">Зона не выбрана</div><div class="big" id="zoneCount">0</div><div class="sub">скан / вручную</div></div>
-        <div class="row">
-          <button class="btn" id="camBtn" type="button">Камера</button>
-          <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
-          <input id="codePhoto" type="file" accept="image/*" hidden>
-          <button class="btn" id="doneZone" type="button">Зона готова</button>
-        </div>
+        <button class="btn pri" id="camBtn" type="button" style="font-size:16px;padding:14px 18px">Камера</button>
       </div>
-      <div id="camBox" hidden style="position:relative;margin-top:10px"><video id="cam" playsinline muted autoplay></video><div style="position:absolute;left:8%;right:8%;top:130px;height:2px;background:#e5484d;opacity:.85;pointer-events:none"></div><div class="sub" style="margin-top:6px">Наведите красную линию на штрихкод. Держите 10–20 см.</div></div>
-      <div class="sub" id="scanState" style="margin-top:6px"></div>
-      <form class="scan" id="scanForm" style="margin-top:12px" autocomplete="off">
-        <input id="scanIn" inputmode="text" placeholder="Сканируйте или введите артикул" aria-label="Штрихкод или артикул">
-        <button class="btn pri" type="submit">+1</button>
-      </form>
       <div id="flash" style="margin-top:10px"></div>
       <div id="pick"></div>
+      <div class="row" style="margin-top:10px">
+        <label class="btn" for="codePhoto" style="cursor:pointer">Фото кода</label>
+        <input id="codePhoto" type="file" accept="image/*" hidden>
+        <button class="btn" id="manualBtn" type="button">Ввести вручную</button>
+        <button class="btn" id="doneZone" type="button">Зона готова</button>
+      </div>
+      <form class="scan" id="scanForm" style="margin-top:10px" autocomplete="off" hidden>
+        <input id="scanIn" inputmode="text" placeholder="Штрихкод или артикул" aria-label="Штрихкод или артикул">
+        <button class="btn pri" type="submit">+1</button>
+      </form>
+      <div class="sub" id="scanState" style="margin-top:8px"></div>
     </div>
 
     <div class="card">
@@ -450,6 +451,7 @@ function showFind(c){
   $("pick").innerHTML='<div class="flash warn" style="margin-top:8px">Код <span class="mono">'+esc(c)+'</span>. Найдите товар — дальше его узнают все.<input class="t" id="findArt" placeholder="Название или артикул" autocomplete="off" style="margin-top:8px"><div id="findRes" class="sizes"></div></div>';
   $("findArt").focus();
 }
+function focusScan(){ var f=$("scanForm"); if(f&&!f.hidden) $("scanIn").focus(); }
 function hit(k){
   if(!add(k,1)) return;
   var s=S[k], cq=calc().c[k]||0, exp=s?s.qty:0;
@@ -482,13 +484,13 @@ function poll(){
 document.addEventListener("click",function(e){
   var t=e.target.closest("[data-tab]");
   if(t){ tab=t.dataset.tab; Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){b.setAttribute("aria-selected",String(b===t));}); ["scan","prog","diff","set"].forEach(function(p){$("p-"+p).hidden=p!==tab;}); render(); return; }
-  var zc=e.target.closest("[data-zone]"); if(zc){ myZone=zc.dataset.zone; ls("rev-zone",myZone); $("flash").innerHTML=""; $("photoIn").value=""; render(); return; }
+  var zc=e.target.closest("[data-zone]"); if(zc){ myZone=zc.dataset.zone; ls("rev-zone",myZone); $("flash").innerHTML=""; $("photoIn").value=""; render(); if(set().stage==="scan"&&!camOn) startCam(); return; }
   if(e.target.id==="plusZone"){ $("addRow").hidden=!$("addRow").hidden; if(!$("addRow").hidden) $("newZone").focus(); return; }
   if(e.target.id==="okName"){ setName($("myName").value); return; }
   if(e.target.id==="chName"){ myName=""; ls("rev-name",""); $("nameRow").innerHTML=""; render(); return; }
   if(e.target.id==="takeZone"){ call("takeZone",INIT,myName,myZone).then(apply).catch(showErr); return; }
-  var p=e.target.closest("[data-pick]"); if(p){ if(p.dataset.code) learn(p.dataset.code,p.dataset.pick); $("pick").innerHTML=""; hit(p.dataset.pick); $("scanIn").focus(); return; }
-  var fa=e.target.closest("[data-fart]"); if(fa){ var a=fa.dataset.fart; if(arts[a].length===1){ learn(pendingCode,arts[a][0]); $("pick").innerHTML=""; hit(arts[a][0]); $("scanIn").focus(); } else askSize(a,pendingCode); return; }
+  var p=e.target.closest("[data-pick]"); if(p){ if(p.dataset.code) learn(p.dataset.code,p.dataset.pick); $("pick").innerHTML=""; hit(p.dataset.pick); focusScan(); return; }
+  var fa=e.target.closest("[data-fart]"); if(fa){ var a=fa.dataset.fart; if(arts[a].length===1){ learn(pendingCode,arts[a][0]); $("pick").innerHTML=""; hit(arts[a][0]); focusScan(); } else askSize(a,pendingCode); return; }
   var fc=e.target.closest("[data-findcode]"); if(fc){ showFind(fc.dataset.findcode); return; }
   var u=e.target.closest("[data-undo]"); if(u){ if(add(u.dataset.undo,-1)) flash("warn","Отменила последний скан."); return; }
   var hb=e.target.closest("[data-hist]"); if(hb){ openHist(hb.dataset.hist); return; }
@@ -532,7 +534,7 @@ $("doneZone").addEventListener("click",function(){
     flash(d<0?"bad":"warn","Скан "+fmt(z.n)+", вручную "+fmt(z.hand)+": "+(d<0?"не досканировали "+fmt(-d):"лишних "+fmt(d))+" шт. Досканируйте или пересчитайте. Закрыть всё равно — нажмите ещё раз."); return; }
   doneArm=0; flush(); call("setZoneStatus",INIT,myName,myZone,z.status==="done"?"open":"done").then(apply).catch(showErr);
 });
-$("scanForm").addEventListener("submit",function(e){ e.preventDefault(); var v=$("scanIn").value; $("scanIn").value=""; resolve(v); $("scanIn").focus(); });
+$("scanForm").addEventListener("submit",function(e){ e.preventDefault(); var v=$("scanIn").value; $("scanIn").value=""; resolve(v); focusScan(); });
 $("openScan").addEventListener("click",function(){ $("gateNote").textContent="Открываю…"; call("setStage",INIT,"scan").then(function(st){ $("gateNote").textContent="Скан открыт для всех."; apply(st); }).catch(function(e){ $("gateNote").textContent=""; showErr(e); }); });
 $("backPrep").addEventListener("click",function(){ call("setStage",INIT,"prep").then(apply).catch(showErr); });
 $("exportBtn").addEventListener("click",function(){ $("exportNote").textContent="Считаю…"; flush();
@@ -621,8 +623,8 @@ function scanLoop(){
   decodeCanvas(frameCv).then(function(code){ camBusy=false; if(code&&camOn) gotCode(code); setTimeout(scanLoop, code?900:80); })
     .catch(function(){ camBusy=false; setTimeout(scanLoop,300); });
 }
-$("camBtn").addEventListener("click",function(){
-  if(camOn){ stopCam(); return; }
+function startCam(){
+  if(camOn) return;
   var v=$("cam");
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ flash("bad","Живая камера здесь не работает. Нажмите «Фото кода»."); return; }
   loadZX().catch(function(){});
@@ -633,7 +635,9 @@ $("camBtn").addEventListener("click",function(){
       if(cap.focusMode&&cap.focusMode.indexOf("continuous")>=0) tr.applyConstraints({advanced:[{focusMode:"continuous"}]}).catch(function(){}); }catch(e){}
     camOn=true; $("camBtn").textContent="Выключить"; scanLoop();
   }).catch(function(){ flash("bad","Камера не разрешена. Нажмите «Фото кода» — это работает всегда."); });
-});
+}
+$("camBtn").addEventListener("click",function(){ if(camOn) stopCam(); else startCam(); });
+$("manualBtn").addEventListener("click",function(){ var f=$("scanForm"); f.hidden=!f.hidden; this.textContent=f.hidden?"Ввести вручную":"Скрыть поле"; if(!f.hidden) focusScan(); });
 function stopCam(){ camOn=false; if(stream) stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; $("cam").srcObject=null; $("camBox").hidden=true; $("camBtn").textContent="Камера"; }
 
 /* Фото кода: снимок с камеры телефона, код ищем на снимке. */
@@ -658,7 +662,7 @@ $("codePhoto").addEventListener("change",function(){
 /* ---------- boot ---------- */
 function start(){
   call("getStock",INIT).then(function(d){ loadStock(d); return call("getState",INIT); })
-    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); setTimeout(function(){$("scanIn").focus();},100); if(queue.length) flushSoon(); })
+    .then(function(st){ setLive("on","в сети"); apply(st); setInterval(poll,9000); if(queue.length) flushSoon(); })
     .catch(function(e){ setLive("off","нет доступа"); showErr(e); });
 }
 /* Данные Telegram берём из адреса — не ждём скрипт telegram.org. */
